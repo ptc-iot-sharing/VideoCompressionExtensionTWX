@@ -1,0 +1,215 @@
+import groovy.xml.XmlUtil
+import org.apache.http.entity.mime.MultipartEntityBuilder
+import groovyx.net.http.HTTPBuilder
+import static groovyx.net.http.Method.*
+
+group 'com.ptc'
+version '1.0-SNAPSHOT'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+apply plugin: 'java'
+apply plugin: 'wrapper'
+defaultTasks 'clean', 'build-extension'
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.apache.httpcomponents:httpmime:4.5.2'
+        classpath 'org.codehaus.groovy.modules.http-builder:http-builder:0.7.1'
+    }
+}
+
+project.sourceCompatibility = 1.8
+project.targetCompatibility = 1.8
+
+// set the properties accordingly
+project.ext {
+    incrementVersionNumber = true
+    extensionJar = "VideoCompressionExtension.jar"
+    baseDir = projectDir
+    common = 'common'
+    uiDir = "${baseDir}/ui" // if there are any widgets
+    localJarDir = "${baseDir}/lib/local" // if you have any jars add them here
+    srcDir = "${baseDir}/src/main" // where are the sources located
+    buildDir = "${baseDir}/build" // where is the build saved
+    configDir = "${baseDir}/configfiles" // folder location of the metadata.xml file
+    zipDir = "${baseDir}/zip" // where to store the generated zip
+    thingworxSdkDir = "${baseDir}/lib/common" // where the thingworx sdk is located
+    packageVendor = "ThingWorx Customer Service"
+    packageName = "VideoCompressionExtension"
+    packageTitle = "VideoCompressionExtension"
+    packageVersion = version
+    thingworxServerRoot = "http://Administrator:admin@localhost:8016"
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+
+    flatDir {
+        dirs project.ext.thingworxSdkDir
+    }
+    flatDir {
+        dirs project.ext.localJarDir
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir project.ext.srcDir
+        }
+    }
+}
+
+clean.doFirst {
+    delete project.ext.zipDir
+}
+
+configurations {
+    packageDependencies
+    compile {
+        extendsFrom packageDependencies
+    }
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    // add all the dependencies for the extension using the packageDependencies configuration. Here only one is added
+
+    // the zip version
+    compile fileTree(dir: project.ext.thingworxSdkDir, include: ['*.jar'])
+    packageDependencies fileTree(dir: project.ext.localJarDir, include: ['*.jar'])
+}
+
+jar {
+    archiveName = project.ext.extensionJar
+    manifest {
+        attributes(["Built-By"  : project.ext.packageVendor,
+                    "Build-Date": new Date().format("yyyy-MM-dd HH:mm:ss")])
+        attributes(["Package-Title"  : project.ext.packageTitle,
+                    "Package-Version": project.ext.packageVersion,
+                    "Package-Vendor" : project.ext.packageVendor], project.ext.packageName
+        )
+    }
+}
+
+def addDependenciesInMetadata() {
+    def file = "${buildDir}/zip/metadata.xml"
+    def parser = new XmlParser(false, true)
+    def xml = parser.parse(file)
+    xml.ExtensionPackages.ExtensionPackage.JarResources[0]?.appendNode(
+            "FileResource",
+            [type: "JAR", file: project.ext.extensionJar]
+    )
+    for (File f : configurations.packageDependencies) {
+        if (f.getName().startsWith("commons-codec") ||
+                f.getName().startsWith("commons-io") ||
+                f.getName().startsWith("commons-lang") ||
+                f.getName().startsWith("commons-logging") ||
+                f.getName().startsWith("netty") ||
+                f.getName().startsWith("log4j") ||
+                f.getName().startsWith("httpclient") ||
+                f.getName().startsWith("httpcore") ||
+                f.getName().startsWith("slf4j")
+        ) {
+            continue
+        }
+        xml.ExtensionPackages.ExtensionPackage.JarResources[0]?.appendNode(
+                "FileResource",
+                [type: "JAR", file: f.getName()]
+        )
+    }
+    PrintWriter pw = new PrintWriter(new File(file))
+    pw.write(XmlUtil.serialize(xml))
+    pw.close()
+}
+
+task prepPackage(dependsOn: jar) {
+    if (project.ext.incrementVersionNumber)
+        increaseVersionNumber()
+    doLast {
+        delete project.ext.zipDir
+        delete "${buildDir}/zip/"
+
+        // add here all the jars from the packageDependencies configuration
+        copy {
+            from configurations.packageDependencies
+            into "${buildDir}/zip/lib/common/"
+        }
+        // add the configuration
+        copy {
+            from "${project.ext.configDir}"
+            into "${buildDir}/zip/"
+        }
+        addDependenciesInMetadata()
+        // add the extension jar itself
+        copy {
+            from "${buildDir}/libs/${project.ext.extensionJar}"
+            into "${buildDir}/zip/lib/common/"
+        }
+        // add the ui files
+        copy {
+            from uiDir
+            into "${buildDir}/zip/ui/"
+        }
+    }
+}
+
+task packageExtension(type: Zip, dependsOn: prepPackage, overwrite: true) {
+    archiveName = "${project.name}.zip"
+    destinationDir = new File(project.ext.zipDir)
+    from "${buildDir}/zip/"
+}
+
+
+def increaseVersionNumber() {
+    def file = "${configDir}/metadata.xml"
+    def parser = new XmlParser(false, true)
+    def xml = parser.parse(file)
+
+    def currentVersion = xml.ExtensionPackages.ExtensionPackage.@packageVersion[0]
+
+    def versionComponents = currentVersion.split('\\.')
+
+    def minorVersion = ++Integer.parseInt(versionComponents[versionComponents.length - 1])
+
+    versionComponents[versionComponents.length - 1] = String.valueOf(minorVersion)
+
+    xml.ExtensionPackages.ExtensionPackage.@packageVersion = String.join('.', versionComponents)
+    //  xml.ExtensionPackages.ExtensionPackage.get(0).attributes().put('packageVersion', String.join(',', versionComponents));
+
+    println 'Updated to version ' + String.join('.', versionComponents)
+    println xml.ExtensionPackages.ExtensionPackage.@packageVersion[0]
+
+    PrintWriter pw = new PrintWriter(new File(file))
+    pw.write(XmlUtil.serialize(xml))
+    pw.close()
+}
+
+task upload(dependsOn: packageExtension) {
+    doLast {
+        def http = new HTTPBuilder("${thingworxServerRoot}/Thingworx/")
+
+        def extZip = file("${baseDir}/zip/${project.name}.zip")
+
+        http.request(POST) { req ->
+            uri.path = 'ExtensionPackageUploader'
+            uri.query = ['purpose': 'import']
+            headers."X-XSRF-TOKEN" = "TWX-XSRF-TOKEN-VALUE"
+            requestContentType = 'multipart/form-data'
+            MultipartEntityBuilder entity = MultipartEntityBuilder.create().setLaxMode()
+            entity.addBinaryBody('file', extZip)
+            req.setEntity(entity.build())
+            response.success = { resp ->
+                println("Upload successful!")
+            }
+            response.failure = { resp ->
+                println(resp.statusLine)
+                throw new StopExecutionException("Thingworx upload failed! See server response above")
+            }
+        }
+    }
+}
