@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Entities>
     <ExtensionPackages>
-        <ExtensionPackage name="VideoCompressionExtension" description="" vendor="PTC Romania" packageVersion="1.0.19"
+        <ExtensionPackage name="VideoCompressionExtension" description="" vendor="PTC Romania" packageVersion="1.0.35"
                           minimumThingWorxVersion="8.0.0">
             <JarResources/>
         </ExtensionPackage>
