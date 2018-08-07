@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Entities>
-    <ExtensionPackages>
-        <ExtensionPackage name="VideoCompressionExtension" description="" vendor="PTC Romania" packageVersion="1.0.35"
-                          minimumThingWorxVersion="8.0.0">
-            <JarResources/>
-        </ExtensionPackage>
-    </ExtensionPackages>
-    <ThingPackages>
-        <ThingPackage name="VideoConversionThingPackage" description=""
-                      className="com.thingworx.extensions.videocompression.VideoCompressionThing"
-                      aspect.isSystemObject="false" aspect.isCreatable="true"/>
-    </ThingPackages>
-    <ThingTemplates>
-        <ThingTemplate name="VideoConversionThingTemplate" description="Video conversion"
-                       thingPackage="VideoConversionThingPackage" aspect.isSystemObject="false"/>
-    </ThingTemplates>
+  <ExtensionPackages>
+    <ExtensionPackage name="VideoCompressionExtension" description="" vendor="PTC Romania" packageVersion="1.0.45"
+                      minimumThingWorxVersion="8.0.0">
+      <JarResources/>
+    </ExtensionPackage>
+  </ExtensionPackages>
+  <ThingPackages>
+    <ThingPackage name="VideoConversionThingPackage" description=""
+                  className="com.thingworx.extensions.videocompression.VideoCompressionThing"
+                  aspect.isSystemObject="false" aspect.isCreatable="true"/>
+  </ThingPackages>
+  <ThingTemplates>
+    <ThingTemplate name="VideoConversionThingTemplate" description="Video conversion"
+                   thingPackage="VideoConversionThingPackage" aspect.isSystemObject="false"/>
+  </ThingTemplates>
 </Entities>

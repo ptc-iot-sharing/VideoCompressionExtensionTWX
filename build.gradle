@@ -31,6 +31,7 @@ project.ext {
     baseDir = projectDir
     common = 'common'
     uiDir = "${baseDir}/ui" // if there are any widgets
+    entitiesDir = "${baseDir}/Entities" // if there are any widgets
     localJarDir = "${baseDir}/lib/local" // if you have any jars add them here
     srcDir = "${baseDir}/src/main" // where are the sources located
     buildDir = "${baseDir}/build" // where is the build saved
@@ -154,6 +155,11 @@ task prepPackage(dependsOn: jar) {
         copy {
             from uiDir
             into "${buildDir}/zip/ui/"
+        }
+        // add the ui files
+        copy {
+            from entitiesDir
+            into "${buildDir}/zip/Entities/"
         }
     }
 }
