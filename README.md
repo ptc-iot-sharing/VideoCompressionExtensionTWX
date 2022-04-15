@@ -29,4 +29,4 @@ When a job is completed, two events can trigger and be subscribed:
 The `ProcessingQueue` property contains information about the jobs that have completed, are in queue, or are being processed.
 
 
-    
+#This Extension is provided as-is and without warranty or support. It is not part of the PTC product suite. This project is licensed under the terms of the MIT license  
